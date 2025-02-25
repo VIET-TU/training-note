@@ -1,188 +1,16 @@
-
-# 1. Tạo PID Namespace và Network Namespace
-
-- Chúng ta sẽ tạo hai môi trường độc lập, mỗi môi trường có:
-    + PID namespace riêng → Các tiến trình không nhìn thấy nhau.
-    + Network namespace riêng → Mạng bị cô lập.
-
-## Bước 1: Tạo môi trường PID + Network Namespace đầu tiên
-
-```bash
-sudo unshare --fork --pid --mount-proc --net bash
-# --pid → Tạo PID namespace (tiến trình bị cô lập).
-# --net → Tạo Network namespace (mạng bị cô lập).
-# --fork → Chạy lệnh trong môi trường mới.
-# --mount-proc → Gắn /proc riêng.
-
-# ps aux  # Chỉ thấy tiến trình bên trong namespace, không thấy tiến trình từ host.
-# ip addr # Không có interface mạng nào từ host.
-root@k8s-master-1:~# sudo unshare --fork --pid --mount-proc --net bash
-root@k8s-master-1:~# ip a
-1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
-    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
-root@k8s-master-1:~# ps aux
-USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
-root           1  0.0  0.1   7636  4180 pts/0    S    14:56   0:00 bash
-root           9  0.0  0.0  10072  1544 pts/0    R+   14:56   0:00 ps aux
-```
-
-# Bước 2: Tạo một giao diện mạng và kết nối với host
-- Trong shell của namespace:
-
-```bash
-ip link add veth1 type veth peer name veth-host1
-ip link set veth1 up
-ip addr add 192.168.1.2/24 dev veth1
-```
-
-- Trở lại host (mở một terminal khác):
-
-```bash
-sudo ip link set veth-host1 up
-sudo ip addr add 192.168.1.1/24 dev veth-host1
-```
-
-===== NHáp
-
-Giải thích chi tiết cách tạo và kết nối network namespace với host bằng veth (Virtual Ethernet Pair)
-
-# 1. Khái niệm về Virtual Ethernet Pair (veth)
-- veth (Virtual Ethernet Pair) là một cặp giao diện mạng ảo giúp kết nối hai namespace với nhau.
-- Mỗi cặp veth hoạt động như một dây cáp ảo, dữ liệu truyền qua một đầu sẽ xuất hiện ở đầu kia.
-- Một đầu của veth sẽ nằm trong network namespace, đầu còn lại nằm trong host hoặc một namespace khác.
-
-# 2. Câu lệnh tạo và kết nối mạng giữa namespace và host
-## Bước 1: Tạo cặp veth
-- Trong network namespace, chạy:
-```bash
-ip link add veth1 type veth peer name veth-host1
-```
-🔹 Giải thích:
-+ Lệnh này tạo hai interface mạng ảo:
-        + veth1: Sẽ được đưa vào namespace.
-        + veth-host1: Ở host (mặc định).
-+ Khi một gói tin đi vào veth1, nó sẽ xuất hiện ở veth-host1 và ngược lại.
-
-## Bước 2: Đưa veth1 vào namespace
-
-```bash
-ip link set veth1 netns <PID hoặc Tên namespace>
-```
-
-- hoặc nếu đang trong namespace:
-
-```bash
-ip link set veth1 up
-```
-
-- Giải thích:
-    + ip link set veth1 netns <namespace> → Chuyển veth1 vào network namespace.
-    + ip link set veth1 up → Kích hoạt veth1 trong namespace.
-
-## Bước 3: Cấu hình IP cho veth1 trong namespace
-```bash
-ip addr add 192.168.1.2/24 dev veth1
-```
-- 🔹 Giải thích:
-    + Gán địa chỉ IP 192.168.1.2/24 cho veth1 trong namespace.
-    + Điều này giúp veth1 có thể giao tiếp với các địa chỉ trong subnet 192.168.1.0/24.
-
-## Bước 4: Cấu hình veth-host1 trên host
-- Chuyển về terminal host, chạy:
-```bash
-sudo ip link set veth-host1 up
-sudo ip addr add 192.168.1.1/24 dev veth-host1
-```
-🔹 Giải thích:
-    + ip link set veth-host1 up → Kích hoạt veth-host1 trên host.
-    + ip addr add 192.168.1.1/24 dev veth-host1 → Gán địa chỉ IP cho veth-host1, cùng subnet với veth1.
-
-
-==== End Nháp ====
-
-
-===================
-
-# Để kết nối hai network namespace trong Linux bằng bridge, bạn có thể làm như sau:
-
-1. Tạo hai network namespaces
-
-```bash
-ip netns add ns1
-ip netns add ns2
-```
-2. Tạo một bridge
-
-```bash
-ip link add br0 type bridge
-ip link set br0 up
-```
-
-3. Tạo các veth pairs để kết nối namespaces với bridge
-
-```bash
-ip link add veth1 type veth peer name veth1-br
-ip link add veth2 type veth peer name veth2-br
-```
-
-4. Kết nối veth vào namespaces
-
-```bash
-ip link set veth1 netns ns1
-ip link set veth2 netns ns2
-```
-
-5. Kết nối đầu còn lại của veth vào bridge
-
-```bash
-ip link set veth1-br master br0
-ip link set veth2-br master br0
-```
-
-- 6. Kích hoạt các interface
-
-```bash
-ip netns exec ns1 ip link set veth1 up
-ip netns exec ns2 ip link set veth2 up
-ip link set veth1-br up
-ip link set veth2-br up
-```
-
-7. Gán IP cho namespaces
-
-```bash
-ip netns exec ns1 ip addr add 192.168.1.1/24 dev veth1
-ip netns exec ns2 ip addr add 192.168.1.2/24 dev veth2
-```
-
-8. Kiểm tra kết nối
-
-```bash
-ip netns exec ns1 ping -c 3 192.168.1.2
-```
-
-============== 
-
-
-
-
-
-
-================================== Begin =============================
-
-# Network namespace
+# 1. Network namespace
 - Network namspace là khái niệm cho phép bạn cô lập môi trường mạng network trong một host. Namespace phân chia việc sử dụng các khác niệm liên quan tới network như devices, địa chỉ addresses, ports, định tuyến và các quy tắc tường lửa vào trong một hộp (box) riêng biệt, chủ yếu là ảo hóa mạng trong một máy chạy một kernel duy nhất.
 
 - Mỗi network namespaces có bản định tuyến riêng, các thiết lập iptables riêng cung cấp cơ chế NAT và lọc đối với các máy ảo thuộc namespace đó. Linux network namespaces cũng cung cấp thêm khả năng để chạy các tiến trình riêng biệt trong nội bộ mỗi namespace.
 
 ===> khi bạn chỉ tạo một network namespace (ip netns add), nó chỉ cô lập về mạng, không ảnh hưởng đến tiến trình.
 
-# Một số thao tác quản lý làm việc với linux network namespace
+# 2. Một số thao tác quản lý làm việc với linux network namespace
 - Ban đầu, khi khởi động hệ thống Linux, bạn sẽ có một namespace mặc định đã chạy trên hệ thống và mọi tiến trình mới tạo sẽ thừa kế namespace này, gọi là root namespace. Tất cả các quy trình kế thừa network namespace được init sử dụng (PID 1).
 
-![alt text](image-6.png)
+![alt text](./images/image-6.png)
 
-## List namespace
+## 2.1 List namespace
 - Cách để làm việc với network namespace là sử dụng câu lệnh ip netns (tìm hiểu thêm tại man ip netns)
 - Để liệt kê tất cả các network namespace trên hệ thống sử dụng câu lệnh:
 ```bash
@@ -193,7 +21,7 @@ ip netns list
 
 ==> Nếu chưa thêm bất kì network namespace nào thì đầu ra màn hình sẽ để trống. root namespace sẽ không được liệt kê khi sử dụng câu lệnh ip netns list.
 
-## Add namespaces
+## 2.2 Add namespaces
 - Để thêm một network namespace sử dụng lệnh ip netns add <namespace_name>
 - Ví dụ: tạo thêm 2 namespace là ns1 và ns2 như sau:
 
@@ -202,7 +30,7 @@ ip netns list
  ip netns add ns2
 ```
 
-![alt text](image-7.png)
+![alt text](./images/image-7.png)
 
 - Sử dụng câu lệnh ip netns hoặc ip netns list để hiển thị các namespace hiện tại:
 
@@ -226,11 +54,11 @@ total 0
 -r--r--r-- 1 root root 0 Feb 24 14:44 ns2
 ```
 
-## Executing commands trong namespaces
+## 2.3 Executing commands trong namespaces
 - Để xử lý các lệnh trong một namespace (không phải root namespace) sử dụng ip netns exec <namespace> <command>
 - Ví dụ: chạy lệnh ip a liệt kê địa chỉ các interface trong namespace ns1.
 
-![alt text](image-8.png)
+![alt text](./images/image-8.png)
 
 ```bash
 root@k8s-master-1:~# ip netns exec ns1 ip a
@@ -240,7 +68,7 @@ root@k8s-master-1:~# ip netns exec ns1 ip a
 
 - Kết quả đầu ra sẽ khác so với khi chạy câu lệnh ip a ở chế độ mặc định (trong root namespace). Mỗi namespace sẽ có một môi trường mạng cô lập và có các interface và bảng định tuyến riêng.
 
-![alt text](image-9.png)
+![alt text](./images/image-9.png)
 
 - Để liệt kê tất các các địa chỉ interface của các namespace sử dụng tùy chọn –a hoặc –all như sau:
 
@@ -273,7 +101,7 @@ netns: ns1
  ip a #se chi hien thi thong tin trong namespace <namespace_name> 
 ```
 
-## Gán interface vào một network namespace
+## 2.4 Gán interface vào một network namespace
 
 ```bash
 # - Sử dụng câu lệnh sau để gán interface vào namespace:
@@ -286,19 +114,123 @@ ip link set <interface_name> netns <namespace_name>
 
 1.2.5. Xóa namespace
 
-## Xóa namespace
+## 2.5 Xóa namespace
 ```bash
 ip netns delete <namespace_name>
 ```
-# 2. Một số bài lab thử nghiệm tính năng của linux network namespace
-## 2.1. Kết nối 2 namespace sử dụng Openvswitch
+# 3. Một số bài lab thử nghiệm tính năng của linux network namespace
 
 - Xét một ví dụ đơn giản, kết nối 2 namespace sử dụng một virtual switch và gửi bản tin ping từ một namespace tới namespace khác.
-- 2 virtual switch thông dụng nhất trong hệ thống ảo hóa trên linux là linux `bridge` và `Openvswitch`. Phần lab này sẽ sử dụng `Openvswitch`.
+- 2 virtual switch thông dụng nhất trong hệ thống ảo hóa trên linux là linux `bridge` và `Openvswitch`. 
+
+## 3.1. Kết nối 2 namespace sử dụng Openvswitch
+
+### 3.1.1 Kết nối thông qua virtual ethernet (veth)
+
+![alt text](./images/image-19.png)
+
+```bash
+ovs-vsctl add-br ovs1
+```
+
+- Thêm cặp veth
+    + Để kết nối các namespace tới swtich, sử dụng veth pairs.
+    + `Virtual Ethernet interfaces` (hay veth) là một kiến trúc thú vị, chúng luôn có 1 cặp, và được sử dụng để kết nối như một đường ống: các lưu lượng tới từ một đầu veth và được đưa ra, peer tới giao diện veth còn lại. Như vậy, có thể dùng veth để kết nối mạng trong namespace từ trong ra ngoài root namespace trên các interface vật lý của root namespace.
+    + Thêm một veth pairs sử dụng lệnh:
+    + `ip link add veth0 type veth peer name veth1`
+    + Khi đó, một veth được tạo ra với 2 đầu là 2 interface veth0 và veth1.
+    + Như mô hình trong bài, thêm veth nối giữa namespace ns1 và switch ovs1 :
+    + `ip link add veth-ns1 type veth peer name eth0-ns1`
+    + Thêm veth dùng để nối giữa ns2 và ovs1:
+    + `ip link add veth-ns2 type veth peer name eth0-ns2`
+
+- Gán các interface vào namespace tương ứng
+    + Chuyển interface eth0-ns1 và namespace ns1 và eth1-ns2 vào namespace ns2 và bật lên:
+
+```bash
+ ip link set eth0-ns1 netns ns1
+ ip netns exec ns1 ip link set eth0-ns1 up
+
+ ip link set eth0-ns2 netns ns2
+ ip netns exec ns2 ip link set eth0-ns2 up
+```
+
+- Các interface còn lại gán vào openvswitch port:
+
+```bash
+ ip link set veth-ns1 up
+ ip link set veth-ns2 up
+ ovs-vsctl add-port ovs1 veth-ns1
+ ovs-vsctl add-port ovs1 veth-ns2
+```
+
+- Lưu ý: khi thêm 2 đầu interface của các veth vào namespace hoặc openvswitch thì phải bật các device lên (device hiểu đơn giản trong trường hợp này là 2 đầu interface của veth). Sử dụng câu lệnh: ip link set <device_name> up
+
+- Kiểm tra lại sử dụng câu lệnh: ovs-vsctl show được kết quả như sau:
+
+```bash
+root@k8s-master-1:~# ovs-vsctl show
+6ed360e7-11b2-4fd1-bd67-d019d7259462
+    Bridge ovs1
+        Port veth-ns2
+            Interface veth-ns2
+        Port veth-ns1
+            Interface veth-ns1
+        Port ovs1
+            Interface ovs1
+                type: internal
+    ovs_version: "2.17.9"
+```
+
+- Gán địa chỉ IP và ping thử giữa 2 namespace
+
+```bash
+ip netns exec ns1 bash
+ifconfig eth0-ns1 10.0.0.1
+
+# root@k8s-master-1:~# ip a
+# 1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
+#     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+# 2: tunl0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1000
+#     link/ipip 0.0.0.0 brd 0.0.0.0
+# 23: eth0-ns1@if24: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+#     link/ether 9e:5e:a6:77:2d:ab brd ff:ff:ff:ff:ff:ff link-netnsid 0
+#     inet 10.0.0.1/8 brd 10.255.255.255 scope global eth0-ns1
+#        valid_lft forever preferred_lft forever
+#     inet6 fe80::9c5e:a6ff:fe77:2dab/64 scope link
+#        valid_lft forever preferred_lft forever
+
+ip netns exec ns2 bash
+ifconfig eth0-ns2 10.0.0.2
+
+# root@k8s-master-1:~# ip a
+# 1: lo: <LOOPBACK> mtu 65536 qdisc noop state DOWN group default qlen 1000
+#     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+# 2: tunl0@NONE: <NOARP> mtu 1480 qdisc noop state DOWN group default qlen 1000
+#     link/ipip 0.0.0.0 brd 0.0.0.0
+# 25: eth0-ns2@if26: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+#     link/ether 46:6a:a3:65:bd:30 brd ff:ff:ff:ff:ff:ff link-netnsid 0
+#     inet 10.0.0.2/8 brd 10.255.255.255 scope global eth0-ns2
+#        valid_lft forever preferred_lft forever
+#     inet6 fe80::446a:a3ff:fe65:bd30/64 scope link 
+#        valid_lft forever preferred_lft forever
+```
+
+- Tiến hành ping thử giữa 2 namespace:
+
+```bash
+ip netns exec ns1 ping 10.0.0.2
+
+# root@k8s-master-1:~# ip netns exec ns1 ping 10.0.0.2
+# PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
+# 64 bytes from 10.0.0.2: icmp_seq=1 ttl=64 time=0.813 ms
+# 64 bytes from 10.0.0.2: icmp_seq=2 ttl=64 time=0.063 ms
+# 64 bytes from 10.0.0.2: icmp_seq=3 ttl=64 time=0.057 ms
+```
 
 ================================
 
-# Containerd
+# Containerd khởi tạo container
 
 ```bash
 sudo apt update && sudo apt install -y containerd
@@ -480,8 +412,3 @@ bandwidth  bridge  cni-plugins.tgz  dhcp  dummy  firewall  host-device  host-loc
 2️⃣ Chỉ định plugin CNI bằng cách tạo cấu hình mạng
 - Bạn có thể chỉ định một plugin cụ thể bằng cách tạo một tệp JSON trong /etc/cni/net.d/. Ví dụ:
 ============== End Nháp ===============
-
-
-
-
-==================================== End ===========================

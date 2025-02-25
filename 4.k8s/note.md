@@ -126,9 +126,6 @@ chmod +x /mktemp/bin/sh
 mkdir -p /mktemp/lib/x86_64-linux-gnu /mktemp/lib64
 cp -v /lib/x86_64-linux-gnu/libc.so.6 /mktemp/lib/x86_64-linux-gnu/
 cp -v /lib64/ld-linux-x86-64.so.2 /mktemp/lib64/
-
-ls -lh /mktemp/lib/x86_64-linux-gnu/libc.so.6
-ls -lh /mktemp/lib64/ld-linux-x86-64.so.2
 ```
 
 ```bash
@@ -224,10 +221,6 @@ chmod +x $ROOTFS/bin/sh
 mkdir -p "$ROOTFS/lib/x86_64-linux-gnu" "$ROOTFS/lib64"
 cp /lib/x86_64-linux-gnu/libc.so.6 "$ROOTFS/lib/x86_64-linux-gnu/"
 cp /lib64/ld-linux-x86-64.so.2 "$ROOTFS/lib64/"
-
-mkdir -p "$ROOTFS/lib/x86_64-linux-gnu"
-cp -v /lib/x86_64-linux-gnu/libc.so.6 /mktemp/lib/x86_64-linux-gnu/
-cp -v /lib64/ld-linux-x86-64.so.2 /mktemp/lib64/
 
 ```
 

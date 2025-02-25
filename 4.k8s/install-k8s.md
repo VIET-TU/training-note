@@ -284,5 +284,8 @@ kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/
 ```
 
 ```bash
-
+root@k8s-master-1:~# kubectl get node
+NAME           STATUS   ROLES           AGE   VERSION
+k8s-master-1   Ready    control-plane   51m   v1.30.10
+k8s-master-2   Ready    control-plane   50m   v1.30.10
 ```
