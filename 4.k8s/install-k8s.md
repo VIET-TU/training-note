@@ -25,15 +25,10 @@ cd /home/devops
 sudo swapoff -a
 sudo sed -i '/swap.img/s/^/#/' /etc/fstab
 
-# 1. Kubernetes Scheduler yêu cầu bộ nhớ ổn định
-# Nếu swap được bật, hệ thống có thể chuyển bộ nhớ từ RAM sang swap, làm sai lệch dữ liệu về dung lượng bộ nhớ thực sự có sẵn.
-# Điều này khiến Kubernetes không thể phân bổ tài nguyên chính xác, gây ra lỗi hoặc ảnh hưởng đến hiệu suất.
-
-# 3. Hiệu suất và độ ổn định
+# Hiệu suất và độ ổn định
 # Swap làm giảm hiệu suất vì đọc/ghi từ ổ cứng (hoặc SSD) chậm hơn RAM.
 # Các ứng dụng containerized cần độ trễ thấp và tài nguyên bộ nhớ ổn định, nên Kubernetes yêu cầu chạy hoàn toàn trên RAM.
 
-# Kể từ Kubernetes 1.8, kubelet sẽ từ chối chạy nếu swap không bị tắt trừ khi bạn bật tùy chọn --fail-swap-on=false (không khuyến nghị).
 ```
 
 
@@ -55,13 +50,10 @@ br_netfilter
 # Hai module của kernel cần thiết cho container networking và filesystem.
 
 # overlay
-Là một filesystem module được sử dụng bởi container runtime như containerd hoặc Docker.
-Cho phép sử dụng OverlayFS, giúp tối ưu hóa việc lưu trữ và chia sẻ filesystem giữa các container.
+# Là một filesystem module được sử dụng bởi container runtime như containerd hoặc Docker.
 
 # br_netfilter
 # Là module hỗ trợ network bridge filtering, cần thiết cho Kubernetes để quản lý iptables và Network Policy.
-# Giúp các pod trong Kubernetes có thể giao tiếp với nhau đúng cách.
-# Hỗ trợ các tính năng như NAT, packet filtering, giúp quản lý mạng dễ dàng hơn.
 ```
 
 - Tải module vào kernel
@@ -70,16 +62,6 @@ Cho phép sử dụng OverlayFS, giúp tối ưu hóa việc lưu trữ và chia
 sudo modprobe overlay
 sudo modprobe br_netfilter
 
-# 1️⃣ sudo modprobe overlay
-
-# Tải module OverlayFS vào kernel.
-# Hệ thống file này giúp container lưu trữ dữ liệu hiệu quả bằng copy-on-write, giảm dung lượng ổ đĩa và tăng tốc độ.
-# Docker, containerd, và Kubernetes đều sử dụng OverlayFS để quản lý layer của image và container.
-# 2️⃣ sudo modprobe br_netfilter
-
-# Tải module bridge netfilter vào kernel.
-# Hỗ trợ Kubernetes quản lý iptables để kiểm soát mạng giữa các pod.
-# Giúp các container trong Kubernetes giao tiếp với nhau đúng cách.
 ```
 
 - Cấu hình hệ thống mạng
@@ -89,50 +71,13 @@ echo "net.bridge.bridge-nf-call-ip6tables = 1" | sudo tee -a /etc/sysctl.d/kuber
 echo "net.bridge.bridge-nf-call-iptables = 1" | sudo tee -a /etc/sysctl.d/kubernetes.conf
 echo "net.ipv4.ip_forward = 1" | sudo tee -a /etc/sysctl.d/kubernetes.conf
 
-# 1️⃣ net.bridge.bridge-nf-call-ip6tables = 1
 # Bật tính năng kiểm soát gói tin IPv6 trên bridge network (cầu nối mạng).
-# Kubernetes dùng iptables để quản lý luồng traffic, nếu không bật có thể gây lỗi mạng.
-# ✅ Ý nghĩa: Cho phép Kubernetes quản lý gói tin IPv6 giữa các container.
-# 📌 Ví dụ: Nếu một container gửi gói tin IPv6, Linux sẽ cho phép iptables xử lý nó thay vì chặn.
 
-# 2️⃣ net.bridge.bridge-nf-call-iptables = 1
 # Bật tính năng kiểm soát gói tin IPv4 trên bridge network.
-# Giúp các pod và service trong Kubernetes có thể giao tiếp đúng.
-# ✅ Ý nghĩa: Cho phép Kubernetes quản lý gói tin IPv4 giữa các container.
-# 📌 Ví dụ: Nếu bạn dùng dịch vụ LoadBalancer hoặc NodePort, các gói tin cần đi qua iptables. Nếu không bật, các pod có thể không giao tiếp được với nhau.
 
-# 3️⃣ net.ipv4.ip_forward = 1
+# net.ipv4.ip_forward = 1
 # Cho phép Linux chuyển tiếp gói tin (IP forwarding).
 # Giúp các node trong cluster có thể giao tiếp với nhau, đảm bảo network giữa các pod hoạt động tốt.
-# 🚀 Giả sử bạn có 2 container trên 2 máy khác nhau
-# Nếu không cấu hình hệ thống mạng, hai container này không thể kết nối với nhau.
-# 📌 Tại sao?
-# Linux mặc định chặn việc chuyển tiếp gói tin giữa các mạng (IP forwarding).
-# Kubernetes dùng iptables để điều khiển mạng, nhưng Linux có thể không cho phép iptables xử lý gói tin trên bridge network.
-```
-
-
-```bash
-# 📌 Ví dụ thực tế về net.bridge.bridge-nf-call-iptables = 1
-# 🏗 Tình huống trước khi bật net.bridge.bridge-nf-call-iptables = 1
-# - Bạn có một cluster Kubernetes với 2 Node và triển khai một ứng dụng backend và frontend:
-#     + Pod Backend chạy trên Node A (có IP: 192.168.1.10)
-#     + Pod Frontend chạy trên Node B (có IP: 192.168.1.20)
-# 📌 Mục tiêu:
-#     + Frontend gửi request đến Backend thông qua Service.
-#     + Backend phải nhận được gói tin và phản hồi lại.
-# 📌 Vấn đề xảy ra:
-#     + Mặc định, Linux không cho phép chuyển tiếp gói tin trên bridge network.
-#     + Kubernetes sử dụng iptables để định tuyến gói tin giữa các pod.
-# ==> Nếu net.bridge.bridge-nf-call-iptables = 1 chưa được bật, iptables sẽ bị bỏ qua, khiến request từ Frontend không đến được Backend.
-# 👉 Kết quả: Frontend không thể gọi API từ Backend. 😢
-
-# 🚀 Sau khi bật net.bridge.bridge-nf-call-iptables = 1
-
-# 📌 Điều gì thay đổi?
-# - Linux cho phép iptables xử lý gói tin IPv4 trên bridge network.
-# - Khi Frontend gửi request đến Backend, gói tin được iptables kiểm soát và chuyển đến đúng pod Backend.
-# ==> Kết quả: Frontend gọi API Backend thành công! 🎉
 ```
 
 - Áp dụng cấu hình sysctl
@@ -165,22 +110,6 @@ sudo apt install -y containerd.io
 # 1️⃣ Tạo file cấu hình mặc định cho containerd
 containerd config default | sudo tee /etc/containerd/config.toml >/dev/null 2>&1
 sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
-
-# containerd config default | sudo tee /etc/containerd/config.toml >/dev/null 2>&1
-# Lệnh này tạo file cấu hình mặc định /etc/containerd/config.toml.
-# containerd config default xuất cấu hình mặc định, rồi lưu vào /etc/containerd/config.toml.
-# >/dev/null 2>&1 giúp ẩn thông tin hiển thị trên terminal.
-
-# sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
-# Dòng này bật tính năng SystemdCgroup.
-# sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' tìm và thay thế SystemdCgroup = false thành SystemdCgroup = true.
-
-# 📌 Tại sao cần làm vậy?
-
-# Mặc định, containerd dùng cgroup riêng (cgroupfs).
-# Kubernetes yêu cầu dùng cgroup của systemd để quản lý tài nguyên tốt hơn.
-# Nếu không bật, có thể gặp lỗi khi khởi động kubelet như: `failed to run Kubelet: failed to create cgroup`
-
 ```
 
 - Khởi động containerd
@@ -204,25 +133,8 @@ sudo apt install -y kubelet kubeadm kubectl
 sudo apt-mark hold kubelet kubeadm kubectl
 ```
 
-- Server k8s-master-1
 
-```bash
-sudo kubeadm init
-```
-
-```bash
-devops@k8s-master-1:/root$ mkdir -p $HOME/.kube
-devops@k8s-master-1:/root$ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-devops@k8s-master-1:/root$  sudo chown $(id -u):$(id -g) $HOME/.kube/config
-devops@k8s-master-1:/root$ kubectl get nodes
-NAME           STATUS     ROLES           AGE    VERSION
-k8s-master-1   NotReady   control-plane   110s   v1.30.6
-devops@k8s-master-1:/root$
-
-## Status NotReady bởi vì ta chưa cài đặt network cho cụm k8s nên là nó chưa thể kéo các tài nguyên về
-```
-
-- Triển khai cụm 3 master đồng thời 3 worker luôn
+- Triển khai cụm 2 master đồng thời 2 worker luôn
 
 ```bash
 sudo kubeadm init --control-plane-endpoint "192.168.254.100:6443" --upload-certs
@@ -274,7 +186,6 @@ kubectl taint nodes k8s-master-2 node-role.kubernetes.io/control-plane:NoSchedul
 
  # xóa dòng có chữ loop
  loop
-
 
 ```
 
