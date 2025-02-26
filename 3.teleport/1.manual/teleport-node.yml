@@ -1,0 +1,27 @@
+version: v3
+teleport:
+  nodename: ser
+  data_dir: /var/lib/teleport
+  join_params:
+    token_name: d8957ec663bda1000e23635430ab185f
+    method: token
+  proxy_server: teleport.gtsc.vn:443
+  log:
+    output: stderr
+    severity: INFO
+    format:
+      output: text
+  ca_pin: sha256:6e911ba2f4bdcd589b069afb32b1d5c4f990cd28850ddacb38e71e0acf7c26e3
+  diag_addr: ""
+auth_service:
+  enabled: "no"
+ssh_service:
+  enabled: "yes"
+  labels:
+    teleport.internal/resource-id: e0e9a75e-3619-414d-a120-50d17a1c6864
+    namesv: "load-balancer"
+proxy_service:
+  enabled: "no"
+  https_keypairs: []
+  https_keypairs_reload_interval: 0s
+  acme: {}

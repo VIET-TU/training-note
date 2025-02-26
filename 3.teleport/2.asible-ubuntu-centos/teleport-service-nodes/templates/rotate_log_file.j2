@@ -1,0 +1,14 @@
+/var/log/teleport/*.log {
+        rotate 6
+        monthly
+        missingok
+        notifempty
+        compress
+        delaycompress
+        sharedscripts
+        postrotate
+                touch {{ log_file }}
+                /bin/systemctl reload teleport
+        endscript
+}
+

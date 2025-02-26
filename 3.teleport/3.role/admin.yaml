@@ -1,0 +1,14 @@
+kind: role
+version: v7
+metadata:
+  name: admin
+spec:
+  allow:
+    logins: ["root"]
+    node_labels:
+      "*": "*"
+    kubernetes_groups: ["system:masters"] 
+    rules:
+      - resources: ["*"]
+        verbs: ["*"]
+  deny: {}

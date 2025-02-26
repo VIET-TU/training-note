@@ -1,0 +1,17 @@
+[Unit]
+Description=etcd distributed reliable key-value store
+After=network.target
+
+[Service]
+Type=notify
+User=etcd
+Group=etcd
+WorkingDirectory=/var/lib/etcd
+ExecStart=/usr/local/bin/etcd
+EnvironmentFile=-/etc/default/etcd
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

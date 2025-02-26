@@ -1,0 +1,50 @@
+teleport:
+  data_dir: /var/lib/teleport
+  log:
+    output: stderr
+    severity: INFO
+  storage:
+     type: etcd
+     peers: ["http://10.80.5.143:2379","http://10.80.5.125:2379","http://10.80.5.113:2379"]
+     prefix: /teleport/
+     tls_ca_file: "/etc/etcd/ca.crt"
+     insecure_skip_verify: true
+     tls_skip_verify: true
+
+auth_service:
+  enabled: true
+  cluster_name: "my-teleport-cluster"
+
+proxy_service:
+  enabled: true
+  web_listen_addr: 0.0.0.0:3080
+  public_addr: teleport.gtsc.vn:443
+  https_keypairs:
+    - cert_file: /etc/teleport/certs/teleport.crt
+      key_file: /etc/teleport/certs/teleport.key
+
+---
+
+teleport:
+  data_dir: /var/lib/teleport
+  log:
+    output: stderr
+    severity: INFO
+  storage:
+     type: etcd
+     peers: ["http://10.80.5.143:2379","http://10.80.5.125:2379","http://10.80.5.113:2379"]
+     prefix: /teleport/
+     tls_ca_file: "/etc/etcd/ca.crt"
+     insecure_skip_verify: true
+
+auth_service:
+  enabled: true
+  cluster_name: "my-teleport-cluster"
+
+proxy_service:
+  enabled: true
+  web_listen_addr: 0.0.0.0:3080
+  public_addr: 0.0.0.0:443
+  https_keypairs:
+    - cert_file: /etc/teleport/ca.crt
+      key_file: /etc/teleport/ca.key

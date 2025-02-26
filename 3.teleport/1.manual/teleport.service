@@ -1,0 +1,10 @@
+[Unit]
+Description=Teleport Access Platform
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/teleport start --config=/etc/teleport/teleport.yaml
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,14 @@
+---
+# defaults file for roles/teleport-ectd
+etcd_version: "v3.5.9"
+etcd_data_dir: "/var/lib/etcd"
+etcd_user: "etcd"
+etcd_group: "etcd"
+etcd_bin_dir: "/usr/local/bin"
+
+etcd_nodes:
+  - name: "teleport-etcd-node1"
+    ip: "192.168.88.81"
+  - name: "teleport-etcd-node2"
+    ip: "192.168.89.251"
+

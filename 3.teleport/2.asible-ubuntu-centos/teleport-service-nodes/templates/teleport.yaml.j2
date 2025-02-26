@@ -1,0 +1,30 @@
+version: v3
+teleport:
+  nodename: {{ node_name }}
+  data_dir: /var/lib/teleport
+  join_params:
+    token_name: {{ teleport_token_name }}
+    method: token
+  proxy_server: {{ teleport_proxy_server }}
+  log:
+    output: stderr
+    severity: INFO
+    format:
+      output: text
+  ca_pin: {{ teleport_ca_pin }}
+
+auth_service:
+  enabled: "no"
+
+ssh_service:
+  enabled: "yes"
+  commands:
+    - name: hostname
+      command: [hostname]
+      period: 1m0s
+
+proxy_service:
+  enabled: "no"
+  https_keypairs: []
+  https_keypairs_reload_interval: 0s
+  acme: {}

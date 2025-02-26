@@ -1,0 +1,46 @@
+---
+ip_node: "{{ ansible_default_ipv4['address'] }}"
+log_file: "/var/log/teleport/teleport.log"
+teleport_version: 15.1.3
+node_group: staging
+node_name: "{{ ansible_fqdn }}"
+teleport_token_name: c8759922e333c080225a33f932733d0e
+teleport_proxy_server: teleport.gtsc.vn:443
+teleport_ca_pin: sha256:4c9e0e075d46f71f9d0c8c4a04c91b1eb14b98df80bda5a579134d5c522228f4
+
+
+teleport_proxy_https_keypairs_cert_file: |
+  -----BEGIN CERTIFICATE-----
+  MIIFcTCCA1mgAwIBAgIUJ54WANPr45rfEuZh2WKfOZcVuhMwDQYJKoZIhvcNAQEL
+  BQAwUDELMAkGA1UEBhMCVk4xDjAMBgNVBAgMBUhhbm9pMQ4wDAYDVQQHDAVIYW5v
+  aTENMAsGA1UECgwER1RTQzESMBAGA1UEAwwJKi5ndHNjLnZuMB4XDTI1MDIxOTE1
+  MDkzOVoXDTI2MDIxOTE1MDkzOVowUDELMAkGA1UEBhMCVk4xDjAMBgNVBAgMBUhh
+  bm9pMQ4wDAYDVQQHDAVIYW5vaTENMAsGA1UECgwER1RTQzESMBAGA1UEAwwJKi5n
+  dHNjLnZuMIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA8vy7Xcw5GLP8
+  FM4UeXXYER4a2TGm3KWqzadT2HPSANBPY4opK1CxJPkOi/MmZ9OIzzI2tTaKe4fh
+  m9xGeiDtJLghZceOy1CUDDq2UmBghiWo/3DYDpaMNugDIDLgoB45cPStkZV+yOUe
+  w8r59htpiMibGSwGhRiQ/rCZueqw7jaW9+Zoi4AiywdC44QmWTvG2oT2wyNjk3rt
+  nbqQfk7+rrt/Pw3f59foWBfPOFLAaoEV6jzASlCJPObJAHZRXiDT2qgzPCvYqUnR
+  r2G5tzeLNMPpaeOKRznnWOHaxkiuOpwjJPbrONP/Ir8msvLDVSTNWKPOhqFmt61M
+  CCpWbIC5y+/z+JIFVjeGWlD3nc9GK0ZjwysP2VOlUXpN8f+W2vRxAvWLJhRwlD3T
+  35KX5j2hiqayDVM9mdjNmZKRgS8S46hMIBe0UzUZh7O1eA9WhNA1TF4DBK/VbjaX
+  cb+ULiehW0t//c8zGoOOLS5y6GCLWOv3GLxvhC6UypETwFO2sx0yJWIIppFZDPDR
+  30lLWZ3ayaW3UFQa7+rjlE/VGDWDhAARl84g3F1euQTbWGZ7CITGe9qF4srP3Nnp
+  NMyOgxg/b4MZYyCGnisdxP3HztDIlxCV5fEz0V1LNwKSTdR1Z7n1RfOZR8MABV8y
+  INeZq8mwifRDFmZlvwYYJGnhjUazd4ECAwEAAaNDMEEwIAYDVR0RBBkwF4IJKi5n
+  dHNjLnZuhwSgvyFshwSgvyHvMB0GA1UdDgQWBBTms69AuwK+fW/yhPwm288irbPN
+  szANBgkqhkiG9w0BAQsFAAOCAgEAcTn6KPEzcXda2Y2t6XcMo1twzGiYT3f7p4t+
+  yf82l/L3MzxND+6JrSC+1cM/NhaUZ49hDPMhX8tIw0l2hnf76jToWXfsoyUqhoTF
+  QTa4oRJInTyRlwta6Gmqs3+BmPHLD6G1y0EMx5jy/vhhrX8Q9jq1yERE2nqGgAYN
+  U+8r2q/ro++KDVxKaak08pKk+Wj+55mQWwVfUh9Xy33aI9J1qPqIlrDTPoQwg3a6
+  GhZYBc4m9QW1cHMy+MzhC6cP4P56t4DR6Gqcpq1dDtUj8Nwdp/Wb+wp0EJI4ktDs
+  mcmSY+ela0ZZ0ypXDCSpsT+ykHbMMnhLYouv8rbuqK9bugWU9x+L4nyVgtdnNss9
+  BMmoejzukHdKhiKmMzqXA/xlu9C/l7Jm1IaOoMDHZuL62Js0QXQGqKIRliaduecd
+  x+/OZSFPVtImHv5GGaEIsGeQajneoAEJFs9fSN5/chX00cNg+O3FkAjm/0BioC/y
+  G9CTxwWoRkEdC1iQUkOEqxuJw3ssUGJRuTdfWIp91j6VMcWxoTQVk8qud2kJAI41
+  CMr89G3TiPLBFx/zEtzzfE8d6sC9vXbCp+Mod5gav5vc/YfiUBxpy5iK4d0thnaW
+  sIgRwJL6hGzWpOnVPReNo7AkrsOyqYtia3csmvASECjMsWzHCgFJvpYj1eVddMkq
+  2Oy0WBg=
+  -----END CERTIFICATE-----
+
+

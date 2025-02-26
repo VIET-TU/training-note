@@ -1,0 +1,105 @@
+---
+- name: Remove old teleport
+  shell: "rm -rf /var/lib/teleport /tmp/teleport*"
+
+- name: Copy teleport RPM File to /tmp/
+  copy:
+    src: "teleport-{{ teleport_version }}-1.x86_64.rpm"
+    dest: "/tmp/"
+    mode: 0644
+
+- name: Write to new cert file into /etc/teleport.cert
+  copy:
+    content: "{{ teleport_proxy_https_keypairs_cert_file }}"
+    dest: /etc/teleport.cert
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Copy Teleport cert to system CA certificates directory (CentOS)
+  copy:
+    src: /etc/teleport.cert
+    dest: /etc/pki/ca-trust/source/anchors/teleport.crt
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Update system CA certificates (CentOS)
+  command: update-ca-trust extract
+  become: yes
+
+
+- name: Check log dir
+  stat:
+    path: "/var/log/teleport/"
+  register: check
+
+- name: Create log dir
+  file:
+    path: "/var/log/teleport"
+    owner: root
+    group: root
+    state: directory
+    mode: '0644'
+  when: not check.stat.exists
+
+- name: Create log file
+  file:
+    path: "{{ log_file }}"
+    owner: root
+    group: root
+    state: touch
+    mode: '0644'
+
+- name: Install Teleport on CentOS
+  shell: "yum install -y /tmp/teleport-{{ teleport_version }}-1.x86_64.rpm"
+  tags: teleport
+
+- name: Extract Teleport binaries
+  shell: "rpm2cpio /tmp/teleport-{{ teleport_version }}-1.x86_64.rpm | cpio -idmv"
+  args:
+    chdir: /tmp
+  tags: teleport
+
+- name: Move Teleport binaries to /usr/local/bin
+  shell: "mv /tmp/usr/local/bin/{teleport,tctl,tsh} /usr/local/bin/"
+  args:
+    creates: /usr/local/bin/teleport
+  tags: teleport
+
+- name: Set execute permissions for Teleport binaries
+  file:
+    path: "/usr/local/bin/{{ item }}"
+    mode: "0755"
+  loop:
+    - teleport
+    - tctl
+    - tsh
+  tags: teleport
+
+- name: Configure the teleport.yaml file
+  template: src=teleport.yaml.j2
+            dest=/etc/teleport.yaml
+            mode=0644
+  tags: teleport
+
+- name: Configure the teleport.service file
+  template: src=teleport.service.j2
+            dest=/lib/systemd/system/teleport.service
+            mode=0644
+
+- name: Configure rotate log file
+  template: src=rotate_log_file.j2
+            dest=/etc/logrotate.d/teleport
+            mode=0644
+
+- name: Reload systemd
+  command: sudo systemctl daemon-reload
+
+- name: Enable service teleport
+  service: name=teleport enabled=yes
+  tags: teleport
+  ignore_errors: yes
+
+- name: Restart serivice teleport
+  command: sudo systemctl restart teleport

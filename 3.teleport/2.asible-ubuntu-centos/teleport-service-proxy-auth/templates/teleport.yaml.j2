@@ -1,0 +1,75 @@
+teleport:
+  nodename: {{ teleport_nodename }}
+  data_dir: {{ teleport_data_dir }}
+
+  connection_limits:
+    max_connections: 1000
+    max_users: 250
+
+  log:
+    output: {{ teleport_log_path }}
+    severity: {{ teleport_log_level }}
+    format:
+      output: text
+      extra_fields: [level, timestamp, component, caller]
+
+  storage:
+    type: etcd
+    peers: {{ teleport_storage_etcd_peers }}
+    prefix: /teleport/
+    insecure: true
+    audit_events_uri: ['file:///var/lib/teleport/log']
+
+auth_service:
+{% if teleport_auth_enabled %}
+    enabled: "yes"
+    cluster_name: {{ teleport_auth_cluster_name }}
+    authentication:
+      type: local
+      second_factor: otp
+      default_session_ttl: {{ teleport_default_session_ttl }}
+    listen_addr: {{ teleport_auth_listen_address }}
+{% if teleport_auth_tokens_node or teleport_auth_tokens_proxy or teleport_auth_tokens_auth %}
+    tokens:
+{% for token in teleport_auth_tokens_node %}
+      - "node:{{ token }}"
+{% endfor %}
+{% for token in teleport_auth_tokens_proxy %}
+      - "proxy:{{ token }}"
+{% endfor %}
+{% for token in teleport_auth_tokens_auth %}
+      - "auth:{{ token }}"
+{% endfor %}
+{% endif %}
+    session_recording: {{ teleport_session_recording }}
+{% if teleport_session_recording == "proxy" %}
+    proxy_checks_host_keys: {{ teleport_proxy_checks_host_keys }}
+{% endif %}
+    client_idle_timeout: {{ teleport_client_idle_timeout }}
+{% else %}
+    enabled: "no"
+{% endif %}
+
+ssh_service:
+{% if teleport_ssh_enabled %}
+    enabled: "yes"
+    listen_addr: {{ teleport_ssh_listen_address }}
+    labels:
+      group: {{ teleport_ssh_labels }}
+{% else %}
+    enabled: "no"
+{% endif %}
+
+proxy_service:
+{% if teleport_proxy_enabled %}
+    enabled: "yes"
+    listen_addr: {{ teleport_proxy_listen_address }}
+    web_listen_addr: {{ teleport_proxy_web_listen_address }}
+    public_addr: {{ teleport_proxy_public_addr }}
+    tunnel_listen_addr: {{ teleport_proxy_tunnel_listen_address }}
+    https_keypairs:
+      - key_file: /etc/teleport.priv.key
+        cert_file: /etc/teleport.priv.cert
+{% else %}
+    enabled: "no"
+{% endif %}

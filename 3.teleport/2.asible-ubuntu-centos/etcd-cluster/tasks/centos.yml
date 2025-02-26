@@ -1,0 +1,58 @@
+---
+- name: Update package
+  command: yum update -y
+
+- name: Remove old Teleport
+  shell: "rm -rf /var/lib/teleport/* /tmp/teleport*"
+
+- name: Create user and group for etcd
+  command: useradd --system --no-create-home --shell /sbin/nologin {{ etcd_user }}
+  ignore_errors: yes
+
+- name: Download etcd binary
+  command: curl -L "https://github.com/etcd-io/etcd/releases/download/{{ etcd_version }}/etcd-{{ etcd_version }}-linux-amd64.tar.gz" -o "/home/etcd-{{ etcd_version }}-linux-amd64.tar.gz"
+
+- name: Extract etcd .tar.gz file
+  command: tar -xvzf /home/etcd-{{ etcd_version }}-linux-amd64.tar.gz -C /home
+
+- name: Copy etcd and etcdctl to /usr/local/bin/
+  command: cp /home/etcd-{{ etcd_version }}-linux-amd64/{{ item }} /usr/local/bin/
+  loop:
+    - etcd
+    - etcdctl
+  when: etcd_file_stat.stat.exists
+  ignore_errors: yes
+
+- name: Set permissions for etcd and etcdctl
+  command: chmod 755 /usr/local/bin/{{ item }}
+  loop:
+    - etcd
+    - etcdctl
+
+- name: Create etcd data directory
+  command: mkdir -p {{ etcd_data_dir }}
+
+- name: Change ownership of etcd data directory
+  command: chown {{ etcd_user }}:{{ etcd_group }} {{ etcd_data_dir }}
+
+- name: Configure etcd service
+  template:
+    src: etcd.service.j2
+    dest: "/etc/systemd/system/etcd.service"
+    mode: '0644'
+  notify: Restart etcd
+
+- name: Create etcd config file
+  template:
+    src: etcd.j2
+    dest: /etc/default/etcd
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart etcd
+
+- name: Reload systemd
+  command: systemctl daemon-reload
+
+- name: Enable and start etcd
+  command: systemctl enable --now etcd

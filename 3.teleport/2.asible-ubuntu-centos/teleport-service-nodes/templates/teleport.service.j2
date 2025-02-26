@@ -1,0 +1,15 @@
+[Unit]
+Description=Teleport Service
+Documentation=https://gravitational.com/teleport/docs
+After=network.target
+
+[Service]
+User=root
+ExecStart=/usr/local/bin/teleport start --config=/etc/teleport.yaml
+Environment="SSL_CERT_FILE=/etc/teleport.priv.cert"
+Environment="SSL_CERT_DIR=/etc"
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

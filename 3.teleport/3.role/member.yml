@@ -1,0 +1,31 @@
+kind: role
+version: v7
+metadata:
+  name: member
+spec:
+  allow:
+    logins: ["member"] 
+    node_labels:
+      "*": "*"
+    rules:
+      - resources: ["node"]
+        verbs: ["*"]  
+  deny:
+    logins: ["root"] 
+    # rules:
+    #   - resources: ["role", "auth_server", "trusted_cluster", "token"]
+    #     verbs: ["*"]
+
+---
+
+kind: role
+version: v7
+metadata:
+  name: base
+spec:
+  allow:
+    logins: ["dev1"]
+  deny:
+    rules:
+      - resources: ["node"]
+        verbs: ["*"]

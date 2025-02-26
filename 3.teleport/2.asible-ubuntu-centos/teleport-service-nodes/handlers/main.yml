@@ -1,0 +1,6 @@
+---
+# handlers file for roles/teleport
+- name: restart teleport
+  service: name=teleport state=restarted 
+  tags: teleport
+

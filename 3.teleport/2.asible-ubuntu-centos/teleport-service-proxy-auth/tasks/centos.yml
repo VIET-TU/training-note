@@ -1,0 +1,87 @@
+---
+- name: Remove old Teleport
+  shell: "rm -rf /var/lib/teleport /tmp/teleport*"
+
+- name: Change shell default of useradd to bash
+  ansible.builtin.lineinfile:
+    path: /etc/default/useradd
+    regexp: '^SHELL=/bin/sh'
+    line: SHELL=/bin/bash
+  ignore_errors: yes
+
+- name: Check log directory
+  stat:
+    path: "/var/log/teleport/"
+  register: check
+
+- name: Create log directory
+  file:
+    path: "/var/log/teleport"
+    owner: root
+    group: root
+    state: directory
+    mode: '0755'
+  when: not check.stat.exists
+
+- name: Create log file
+  file:
+    path: "{{ teleport_log_path }}"
+    owner: root
+    group: root
+    state: touch
+    mode: '0644'
+
+- name: Copy teleport RPM file to /tmp/
+  copy:
+    src: "teleport-{{ teleport_version }}-1.x86_64.rpm"
+    dest: "/tmp/"
+
+- name: Install Teleport on CentOS
+  shell: "yum install -y /tmp/teleport-{{ teleport_version }}-1.x86_64.rpm"
+  tags: teleport
+
+
+- name: Enable Teleport service
+  service:
+    name: teleport
+    enabled: yes
+  tags: teleport
+  ignore_errors: yes
+
+- name: Write new key file into /etc/teleport/teleport.priv.key
+  copy:
+    content: "{{ teleport_proxy_https_keypairs_key_file }}"
+    dest: /etc/teleport.priv.key
+    mode: '0600'
+
+- name: Write new cert file into /etc/teleport/teleport.priv.cert
+  copy:
+    content: "{{ teleport_proxy_https_keypairs_cert_file }}"
+    dest: /etc/teleport.priv.cert
+    mode: '0600'
+
+- name: Configure the teleport.yaml file
+  template:
+    src: teleport.yaml.j2
+    dest: /etc/teleport.yaml
+    mode: '0644'
+
+- name: Configure the teleport.service file
+  template:
+    src: teleport.service.j2
+    dest: /etc/systemd/system/teleport.service
+    mode: '0644'
+
+- name: Configure log rotation for Teleport
+  template:
+    src: rotate_log_file.j2
+    dest: /etc/logrotate.d/teleport
+    mode: '0644'
+
+- name: Reload systemd
+  command: systemctl daemon-reload
+
+- name: Restart Teleport service
+  service:
+    name: teleport
+    state: restarted
